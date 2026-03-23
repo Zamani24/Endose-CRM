@@ -1,10 +1,10 @@
-// Endose CRM — Full Supabase-backed React App
+/ Endose CRM — Full Supabase-backed React App
 // Single JSX file with all 20 sections
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const SUPABASE_URL = "https://tlopaxeodqemfdghgviy.supabase.co";
-const STORAGE_BASE = "https://tlopaxeodqemfdghgviy.supabase.co/storage/v1/object/public/portfolio-images";
+const STORAGE_BASE = "https://tlopaxeodqemfdghgviy.supabase.co/storage/v1/object/public/Portfolio%20images";
 const PORTFOLIO_PHOTOS = {
   "Rex's Ice Cream": STORAGE_BASE + "/rexs-logo-seating.jpg",
   "Tier Zero Production Studio": STORAGE_BASE + "/tier-zero-office.jpg",
