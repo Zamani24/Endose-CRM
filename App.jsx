@@ -4,6 +4,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
 const SUPABASE_URL = "https://tlopaxeodqemfdghgviy.supabase.co";
+const STORAGE_BASE = "https://tlopaxeodqemfdghgviy.supabase.co/storage/v1/object/public/portfolio-images";
+const PORTFOLIO_PHOTOS = {
+  "Rex's Ice Cream": STORAGE_BASE + "/rexs-logo-seating.jpg",
+  "Tier Zero Production Studio": STORAGE_BASE + "/tier-zero-office.jpg",
+  "Shoot for Peace Studio 2023": STORAGE_BASE + "/court-game.jpg",
+  "Nuit Blanche x Union Station": STORAGE_BASE + "/nuit-blanche-tunnel.jpg",
+  "Tier Zero Rental Studio": STORAGE_BASE + "/tier-zero-backdrop.jpg",
+  "Kickback Basketball Court": STORAGE_BASE + "/court-aerial.jpg",
+  "Tier Zero Office": STORAGE_BASE + "/tier-zero-kitchen.jpg",
+  "Kickback Studio": STORAGE_BASE + "/kickback-blue-wall.jpg",
+  "Insights Gallery": STORAGE_BASE + "/kickback-gallery.jpg",
+  "Kayla Grey: Landscape Design": STORAGE_BASE + "/tier-zero-lounge.jpg",
+  "Bound: Thesis": STORAGE_BASE + "/tier-zero-mezzanine.jpg",
+  "Bulwer House": STORAGE_BASE + "/tier-zero-shelving.jpg",
+  "Cliff House": STORAGE_BASE + "/kickback-sneaker-wall.jpg",
+};
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsb3BheGVvZHFlbWZkZ2hndml5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMTE4NjQsImV4cCI6MjA4OTc4Nzg2NH0.gLVfdgpkWS6YMyXgr0RMr7nYGMdb_nmeh3NkOkrkxAs";
 
 // Supabase client
@@ -684,9 +700,17 @@ function PortfolioView({ data, onAdd }) {
         {data.portfolio.length === 0 ? <div className="empty" style={{gridColumn:"1/-1"}}><div className="empty-icon">🏛</div><div>No completed projects yet</div></div> :
           data.portfolio.map(p => (
             <div key={p.id} className="panel" style={{cursor:"default"}}>
-              <div style={{height:100,background:"var(--black)",borderRadius:"12px 12px 0 0",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:14}}>
-                <div style={{fontSize:9,letterSpacing:"0.14em",textTransform:"uppercase",color:"rgba(255,255,255,0.4)",marginBottom:4}}>Endose</div>
-                <div style={{fontFamily:"DM Serif Display, serif",fontSize:15,color:"#fff"}}>{p.name}</div>
+              <div style={{height:140,borderRadius:"12px 12px 0 0",overflow:"hidden",position:"relative",background:"var(--black)"}}>
+                {PORTFOLIO_PHOTOS[p.name] ? (
+                  <img src={PORTFOLIO_PHOTOS[p.name]} alt={p.name}
+                    style={{width:"100%",height:"100%",objectFit:"cover",display:"block",opacity:0.9}} />
+                ) : (
+                  <div style={{height:"100%",background:"var(--black)",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:14}}>
+                    <div style={{fontSize:9,letterSpacing:"0.14em",textTransform:"uppercase",color:"rgba(255,255,255,0.4)",marginBottom:4}}>Endose</div>
+                    <div style={{fontFamily:"DM Serif Display, serif",fontSize:15,color:"#fff"}}>{p.name}</div>
+                  </div>
+                )}
+                <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"6px 10px",background:"linear-gradient(to top,rgba(17,17,16,0.8),transparent)",fontSize:11,fontWeight:500,color:"#fff"}}>{p.name}</div>
               </div>
               <div style={{padding:"12px 14px"}}>
                 <div style={{fontSize:12,fontWeight:500}}>{p.name}</div>
