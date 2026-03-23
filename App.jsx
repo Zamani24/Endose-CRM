@@ -1163,9 +1163,9 @@ function FeeCalculator() {
             <div className="form-field"><label>Services Included</label>
               <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
                 {Object.entries(services).map(([k,v]) => (
-                  <label key={k} style={{fontSize:12,display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
-                    <input type="checkbox" checked={v} onChange={e=>setServices({...services,[k]:e.target.checked})} />
-                    {{schematic:"Schematic Design",dd:"Design Development",cd:"Construction Documents",ca:"Contract Administration",pm:"Project Management"}[k]}
+                  <label key={k} style={{fontSize:12,display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:4}}>
+                    <input type="checkbox" checked={v} onChange={e=>setServices({...services,[k]:e.target.checked})} style={{flexShrink:0,width:14,height:14}} />
+                    <span>{{schematic:"Schematic Design",dd:"Design Development",cd:"Construction Documents",ca:"Contract Administration",pm:"Project Management"}[k]}</span>
                   </label>
                 ))}
               </div>
