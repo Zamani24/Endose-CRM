@@ -78,7 +78,8 @@ const css = `
     --blue: #185FA5; --blue-light: #E6F1FB;
   }
   body { font-family: 'DM Sans', sans-serif; background: var(--sand); color: var(--black); font-size: 13px; line-height: 1.5; }
-  #root { display: flex; height: 100vh; overflow: hidden; }
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+  #root { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
 
   /* LOGIN */
   .login-wrap { display: flex; width: 100%; height: 100vh; background: var(--black); }
