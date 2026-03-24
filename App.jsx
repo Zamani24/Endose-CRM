@@ -275,6 +275,381 @@ const Modal = ({ open, title, children, footer, onClose }) => (
   </div>
 );
 
+
+
+// REVENUE DASHBOARD
+function RevenueDashboard({ data }) {
+  const invoices = data.invoices || [];
+  const receipts = data.receipts || [];
+  const leads = data.leads || [];
+  const retainers = data.retainers || [];
+
+  const parseAmt = (s) => parseFloat((s||"0").replace(/[^0-9.]/g,""))||0;
+  const fmt = (n) => "$" + Math.round(n).toLocaleString();
+
+  // Revenue by status
+  const paid = invoices.filter(i=>i.status==="Paid").reduce((s,i)=>s+parseAmt(i.amount),0);
+  const outstanding = invoices.filter(i=>i.status==="Outstanding").reduce((s,i)=>s+parseAmt(i.amount),0);
+  const pending = invoices.filter(i=>i.status==="Pending").reduce((s,i)=>s+parseAmt(i.amount),0);
+  const total = paid + outstanding + pending;
+
+  // Monthly revenue (last 6 months)
+  const months = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date();
+    d.setMonth(d.getMonth() - i);
+    const label = d.toLocaleString("default", { month: "short" });
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const monthInvoices = invoices.filter(inv => {
+      const dateStr = inv.issued || inv.due || "";
+      return dateStr.startsWith(`${year}-${month}`);
+    });
+    const revenue = monthInvoices.reduce((s,i)=>s+parseAmt(i.amount),0);
+    months.push({ label, revenue });
+  }
+  const maxRevenue = Math.max(...months.map(m=>m.revenue), 1);
+
+  // Top clients by revenue
+  const clientRevenue = {};
+  invoices.forEach(inv => {
+    if (!clientRevenue[inv.client]) clientRevenue[inv.client] = 0;
+    clientRevenue[inv.client] += parseAmt(inv.amount);
+  });
+  const topClients = Object.entries(clientRevenue).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxClient = Math.max(...topClients.map(c=>c[1]), 1);
+
+  // Revenue by project type
+  const typeRevenue = {};
+  invoices.forEach(inv => {
+    const proj = [...(data.projects||[]), ...(data.portfolio||[])].find(p=>p.name===inv.project);
+    const type = proj?.type || "Other";
+    if (!typeRevenue[type]) typeRevenue[type] = 0;
+    typeRevenue[type] += parseAmt(inv.amount);
+  });
+  const topTypes = Object.entries(typeRevenue).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Pipeline value
+  const pipelineValue = leads.reduce((s,l)=>s+parseAmt(l.value),0);
+  const monthlyRetainers = retainers.filter(r=>r.status==="Active").reduce((s,r)=>s+parseAmt(r.fee),0);
+
+  // Total expenses
+  const totalExpenses = receipts.reduce((s,r)=>s+parseAmt(r.amount),0);
+  const grossMargin = paid - totalExpenses;
+
+  // Outstanding aging (days overdue)
+  const today = new Date();
+  const aging = { current:0, "30days":0, "60days":0, "90plus":0 };
+  invoices.filter(i=>i.status==="Outstanding"&&i.due).forEach(inv => {
+    const due = new Date(inv.due);
+    const days = Math.floor((today - due) / (1000*60*60*24));
+    const amt = parseAmt(inv.amount);
+    if (days <= 0) aging.current += amt;
+    else if (days <= 30) aging["30days"] += amt;
+    else if (days <= 60) aging["60days"] += amt;
+    else aging["90plus"] += amt;
+  });
+
+  // Lead conversion
+  const closedWon = leads.filter(l=>l.stage==="Closed Won").length;
+  const convRate = leads.length > 0 ? Math.round((closedWon/leads.length)*100) : 0;
+
+  const colors = ["var(--accent)","var(--blue)","var(--amber)","var(--coral)","var(--stone)"];
+
+  return (
+    <div>
+      <div className="section-head">
+        <div><div className="section-h">Revenue Dashboard</div><div className="section-sub">Financial health, pipeline & studio performance</div></div>
+      </div>
+
+      {/* KPI Row */}
+      <div className="stats-row" style={{gridTemplateColumns:"repeat(5,1fr)",marginBottom:16}}>
+        <div className="stat"><div className="stat-label">Total Invoiced</div><div className="stat-value" style={{fontSize:20}}>{fmt(total)}</div><div className="stat-sub">all time</div></div>
+        <div className="stat"><div className="stat-label">Collected</div><div className="stat-value" style={{fontSize:20,color:"var(--accent)"}}>{fmt(paid)}</div><div className="stat-sub">paid invoices</div></div>
+        <div className="stat"><div className="stat-label">Outstanding</div><div className="stat-value" style={{fontSize:20,color:"var(--coral)"}}>{fmt(outstanding)}</div><div className="stat-sub">overdue</div></div>
+        <div className="stat"><div className="stat-label">Pipeline Value</div><div className="stat-value" style={{fontSize:20,color:"var(--blue)"}}>{fmt(pipelineValue)}</div><div className="stat-sub">active leads</div></div>
+        <div className="stat"><div className="stat-label">Monthly Retainers</div><div className="stat-value" style={{fontSize:20,color:"var(--amber)"}}>{fmt(monthlyRetainers)}</div><div className="stat-sub">recurring</div></div>
+      </div>
+
+      <div className="grid2" style={{marginBottom:14}}>
+        {/* Monthly Revenue Chart */}
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">Monthly Revenue — Last 6 Months</span></div>
+          <div style={{padding:"20px 20px 16px"}}>
+            <div style={{display:"flex",alignItems:"flex-end",gap:8,height:120}}>
+              {months.map((m,i) => (
+                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                  <div style={{fontSize:10,color:"var(--mid)",fontWeight:500}}>{m.revenue>0?fmt(m.revenue):""}</div>
+                  <div style={{width:"100%",borderRadius:"4px 4px 0 0",background:m.revenue>0?"var(--accent)":"var(--sand-mid)",
+                    height:`${Math.max(m.revenue/maxRevenue*80,m.revenue>0?8:4)}px`,transition:"height 0.3s",minHeight:4}}></div>
+                  <div style={{fontSize:10,color:"var(--stone)"}}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+            {months.every(m=>m.revenue===0) && <div style={{textAlign:"center",color:"var(--stone)",fontSize:12,marginTop:8}}>No invoices with dates yet</div>}
+          </div>
+        </div>
+
+        {/* Top Clients */}
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">Top Clients by Revenue</span></div>
+          <div style={{padding:"14px 18px"}}>
+            {topClients.length === 0 ? <div className="empty">No invoice data yet</div> :
+              topClients.map(([client, amt], i) => (
+                <div key={i} style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <div style={{fontSize:12,fontWeight:500}}>{client}</div>
+                    <div style={{fontSize:12,fontWeight:500}}>{fmt(amt)}</div>
+                  </div>
+                  <div style={{height:6,background:"var(--sand-mid)",borderRadius:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${Math.round(amt/maxClient*100)}%`,background:colors[i%colors.length],borderRadius:3,transition:"width 0.4s"}}></div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+
+      <div className="grid2" style={{marginBottom:14}}>
+        {/* Revenue by Project Type */}
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">Revenue by Project Type</span></div>
+          <div style={{padding:"14px 18px"}}>
+            {topTypes.length === 0 ? <div className="empty">No data yet</div> :
+              topTypes.map(([type, amt], i) => (
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:colors[i%colors.length]}}></div>
+                    <div style={{fontSize:12}}>{type}</div>
+                  </div>
+                  <div style={{fontSize:12,fontWeight:500}}>{fmt(amt)}</div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+
+        {/* Outstanding Aging */}
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">Receivables Aging</span></div>
+          <div style={{padding:"14px 18px"}}>
+            {[["Current (not due)", aging.current, "b-green"],
+              ["1-30 days overdue", aging["30days"], "b-amber"],
+              ["31-60 days overdue", aging["60days"], "b-coral"],
+              ["60+ days overdue", aging["90plus"], "b-coral"]
+            ].map(([label, amt, cls], i) => (
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)"}}>
+                <div style={{fontSize:12,color:"var(--text-secondary)"}}>{label}</div>
+                <span className={`badge ${cls}`}>{fmt(amt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid2">
+        {/* Studio Health */}
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">Studio Health Score</span></div>
+          <div style={{padding:"20px 18px"}}>
+            {[
+              { label:"Collection Rate", value: total>0 ? Math.round(paid/total*100) : 0, suffix:"%", color:"var(--accent)", good:80 },
+              { label:"Lead Conversion", value: convRate, suffix:"%", color:"var(--blue)", good:30 },
+              { label:"Active Projects", value: (data.projects||[]).length, suffix:"", color:"var(--amber)", good:3 },
+              { label:"Gross Margin", value: grossMargin, suffix:"", color: grossMargin>=0?"var(--accent)":"var(--coral)", good:0, isCurrency:true },
+            ].map((item,i) => (
+              <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+                <div style={{fontSize:12,color:"var(--text-secondary)"}}>{item.label}</div>
+                <div style={{fontSize:15,fontWeight:500,color:item.color}}>
+                  {item.isCurrency ? fmt(item.value) : item.value + item.suffix}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 90 Day Cash Flow Forecast */}
+        <div className="panel">
+          <div className="panel-head"><span className="panel-title">90-Day Cash Flow Forecast</span></div>
+          <div style={{padding:"14px 18px"}}>
+            <div style={{fontSize:11,color:"var(--mid)",marginBottom:12}}>Based on invoice due dates & retainers</div>
+            {[0,1,2].map(monthOffset => {
+              const d = new Date();
+              d.setMonth(d.getMonth() + monthOffset);
+              const label = d.toLocaleString("default", {month:"long"});
+              const yr = d.getFullYear();
+              const mo = String(d.getMonth()+1).padStart(2,"0");
+              const expected = invoices.filter(inv => {
+                const due = inv.due || "";
+                return due.startsWith(`${yr}-${mo}`) && inv.status !== "Paid";
+              }).reduce((s,i)=>s+parseAmt(i.amount),0);
+              const recurring = monthlyRetainers;
+              const total = expected + recurring;
+              return (
+                <div key={monthOffset} style={{padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <div style={{fontSize:12,fontWeight:500}}>{label} {yr}</div>
+                    <div style={{fontSize:13,fontWeight:500,color:"var(--accent)"}}>{fmt(total)}</div>
+                  </div>
+                  <div style={{fontSize:10,color:"var(--mid)"}}>
+                    {expected>0 ? `${fmt(expected)} invoices` : "No invoices due"}
+                    {recurring>0 ? ` + ${fmt(recurring)} retainers` : ""}
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{marginTop:12,padding:"10px 12px",background:"var(--accent-light)",borderRadius:8}}>
+              <div style={{fontSize:10,letterSpacing:"0.06em",textTransform:"uppercase",color:"var(--accent-dark)",marginBottom:3}}>90-Day Total</div>
+              <div style={{fontSize:18,fontWeight:500,color:"var(--accent-dark)",fontFamily:"DM Serif Display,serif"}}>
+                {fmt(
+                  [0,1,2].reduce((sum, mo) => {
+                    const d = new Date(); d.setMonth(d.getMonth()+mo);
+                    const yr = d.getFullYear();
+                    const m = String(d.getMonth()+1).padStart(2,"0");
+                    return sum + invoices.filter(inv=>(inv.due||"").startsWith(`${yr}-${m}`)&&inv.status!=="Paid").reduce((s,i)=>s+parseAmt(i.amount),0) + monthlyRetainers;
+                  }, 0)
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// AI ASSISTANT
+function AIAssistant({ data, onClose }) {
+  const [mode, setMode] = useState("menu");
+  const [input, setInput] = useState("");
+  const [output, setOutput] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const tools = [
+    { id:"proposal", label:"Draft a Proposal", icon:"📄", prompt: (v) => `You are a professional architectural designer at Endose, a design studio in Toronto. Write a polished project proposal for the following:
+
+${v}
+
+Include: Project Overview, Scope of Work, Deliverables, and a brief closing statement. Use professional language. Keep it concise and impressive.` },
+    { id:"email", label:"Write a Client Email", icon:"✉️", prompt: (v) => `You are Rabia, principal designer at Endose Architectural Design in Toronto. Write a professional, warm client email based on this rough idea:
+
+${v}
+
+Make it polished, clear, and professional. Include a subject line.` },
+    { id:"invoice", label:"Generate Invoice Notes", icon:"💰", prompt: (v) => `You are an architectural designer. Generate professional invoice line items based on this description of work:
+
+${v}
+
+Format as a clear list of line items with descriptions. Be specific and professional.` },
+    { id:"brief", label:"Summarize Project Brief", icon:"📋", prompt: (v) => `You are an architectural project manager. Summarize the following project notes into:
+1. Project Overview (2 sentences)
+2. Key Deliverables (bullet list)
+3. Suggested Timeline
+4. Key Risks or Considerations
+
+Notes:
+${v}` },
+    { id:"fee", label:"Estimate Design Fee", icon:"🧮", prompt: (v) => `You are an experienced architectural designer in Toronto, Canada. Based on this project description, suggest a reasonable design fee range with justification:
+
+${v}
+
+Consider Toronto market rates. Provide a low, mid, and high estimate with brief reasoning for each.` },
+  ];
+
+  const run = async () => {
+    if (!input.trim()) return;
+    setLoading(true);
+    setOutput("");
+    const tool = tools.find(t => t.id === mode);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: tool.prompt(input) }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || "").join("") || "No response received.";
+      setOutput(text);
+    } catch(e) {
+      setOutput("Error connecting to AI. Please try again.");
+    }
+    setLoading(false);
+  };
+
+  const selectedTool = tools.find(t => t.id === mode);
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(17,17,16,0.5)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"flex-end",padding:24}}>
+      <div style={{background:"var(--white)",borderRadius:16,width:480,maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px rgba(0,0,0,0.2)"}}>
+        <div style={{padding:"18px 20px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:500,color:"var(--black)"}}>AI Assistant</div>
+            <div style={{fontSize:11,color:"var(--mid)"}}>Powered by Claude</div>
+          </div>
+          <span style={{cursor:"pointer",fontSize:20,color:"var(--mid)"}} onClick={onClose}>×</span>
+        </div>
+
+        {mode === "menu" ? (
+          <div style={{padding:16,overflowY:"auto"}}>
+            <div style={{fontSize:11,color:"var(--mid)",marginBottom:12,letterSpacing:"0.06em",textTransform:"uppercase"}}>What do you need?</div>
+            {tools.map(t => (
+              <div key={t.id} onClick={() => setMode(t.id)}
+                style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:10,cursor:"pointer",marginBottom:6,border:"1px solid var(--border)",transition:"all 0.12s"}}
+                onMouseOver={e => e.currentTarget.style.background="var(--sand)"}
+                onMouseOut={e => e.currentTarget.style.background="transparent"}>
+                <span style={{fontSize:20}}>{t.icon}</span>
+                <span style={{fontSize:13,fontWeight:500,color:"var(--black)"}}>{t.label}</span>
+                <span style={{marginLeft:"auto",color:"var(--stone)"}}>→</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+            <div style={{padding:"10px 16px",borderBottom:"1px solid var(--border)",display:"flex",alignItems:"center",gap:8}}>
+              <span style={{cursor:"pointer",fontSize:13,color:"var(--accent)"}} onClick={() => { setMode("menu"); setInput(""); setOutput(""); }}>← Back</span>
+              <span style={{fontSize:13,fontWeight:500}}>{selectedTool?.icon} {selectedTool?.label}</span>
+            </div>
+            <div style={{padding:16,flex:1,overflowY:"auto"}}>
+              <div style={{fontSize:11,color:"var(--mid)",marginBottom:6,letterSpacing:"0.06em",textTransform:"uppercase"}}>Describe what you need</div>
+              <textarea value={input} onChange={e => setInput(e.target.value)}
+                style={{width:"100%",minHeight:100,padding:"10px 12px",border:"1px solid var(--border-med)",borderRadius:8,fontSize:13,fontFamily:"DM Sans,sans-serif",resize:"vertical",outline:"none",color:"var(--black)"}}
+                placeholder={
+                  mode==="proposal" ? "e.g. Retail interior for a sneaker boutique in Kensington Market, client is Adidem Asteriks, $80K budget, 10 weeks..." :
+                  mode==="email" ? "e.g. Follow up with client about the revised floor plan we sent last week, ask if they have feedback..." :
+                  mode==="invoice" ? "e.g. Schematic design phase for Lay-Up Studio including 3 design concept presentations, floor plans, mood board..." :
+                  mode==="brief" ? "Paste your project notes here..." :
+                  "e.g. Community cultural centre in Toronto, 5000 sq ft, complex structural requirements, 18 month timeline..."
+                } />
+              <button onClick={run} disabled={loading || !input.trim()}
+                style={{width:"100%",marginTop:10,padding:"10px",background:loading||!input.trim()?"var(--sand-mid)":"var(--black)",color:loading||!input.trim()?"var(--stone)":"var(--white)",border:"none",borderRadius:8,fontSize:13,cursor:loading||!input.trim()?"not-allowed":"pointer",fontFamily:"DM Sans,sans-serif",fontWeight:500,transition:"all 0.15s"}}>
+                {loading ? "Generating..." : "Generate →"}
+              </button>
+              {output && (
+                <div style={{marginTop:14}}>
+                  <div style={{fontSize:11,color:"var(--mid)",marginBottom:6,letterSpacing:"0.06em",textTransform:"uppercase"}}>Result</div>
+                  <div style={{padding:"12px 14px",background:"var(--sand)",borderRadius:10,fontSize:12,lineHeight:1.8,color:"var(--black)",whiteSpace:"pre-wrap",maxHeight:300,overflowY:"auto"}}>
+                    {output}
+                  </div>
+                  <button onClick={() => { navigator.clipboard?.writeText(output); }}
+                    style={{marginTop:8,padding:"6px 14px",border:"1px solid var(--border-med)",borderRadius:6,background:"transparent",fontSize:11,cursor:"pointer",fontFamily:"DM Sans,sans-serif",color:"var(--text-secondary)"}}>
+                    Copy to clipboard
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Main App
 export default function App() {
   const [session, setSession] = useState(null);
@@ -289,6 +664,7 @@ export default function App() {
   const [modal, setModal] = useState({ open:false, type:"", record:null });
   const [searchQ, setSearchQ] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [showAI, setShowAI] = useState(false);
 
   const showToast = (msg, type="success") => {
     setToast({ msg, type, visible:true });
@@ -407,6 +783,7 @@ export default function App() {
       { key:"contractors", label:"Contractors", count:data.contractors.length },
     ]},
     { label:"Finance", items:[
+      { key:"revenue", label:"Revenue Dashboard" },
       { key:"invoices", label:"Invoices & Proposals", count:data.invoices.length },
       { key:"invoicegen", label:"Invoice Generator" },
       { key:"proposals", label:"Proposal Generator" },
@@ -419,7 +796,7 @@ export default function App() {
     ]},
   ];
 
-  const titles = { dashboard:"Dashboard", projects:"Active Projects", kanban:"Project Board", portfolio:"Completed Projects", timeline:"Timeline", files:"Files & Media", clients:"Clients", contacts:"Contact Log", leads:"Lead Pipeline", vendors:"Vendors", contractors:"Consultants & Contractors", invoices:"Invoices & Proposals", invoicegen:"Invoice Generator", proposals:"Proposal Generator", feecalc:"Fee Calculator", receipts:"Receipts", payments:"Contractor Payments", retainers:"Retainer Tracker", changeorders:"Change Order Log", expensereport:"Expense Report" };
+  const titles = { dashboard:"Dashboard", projects:"Active Projects", kanban:"Project Board", portfolio:"Completed Projects", timeline:"Timeline", files:"Files & Media", clients:"Clients", contacts:"Contact Log", leads:"Lead Pipeline", vendors:"Vendors", contractors:"Consultants & Contractors", revenue:"Revenue Dashboard", invoices:"Invoices & Proposals", invoicegen:"Invoice Generator", proposals:"Proposal Generator", feecalc:"Fee Calculator", receipts:"Receipts", payments:"Contractor Payments", retainers:"Retainer Tracker", changeorders:"Change Order Log", expensereport:"Expense Report" };
 
   return (
     <>
@@ -452,6 +829,7 @@ export default function App() {
         <main className="main">
           <div className="topbar">
             <div className="topbar-title">{titles[view]||view}</div>
+            <button className="btn btn-dark" onClick={() => setShowAI(true)} style={{fontSize:11,padding:"6px 12px"}}>✦ AI Assistant</button>
             <div className="search-wrap">
               <input className="search-input" placeholder="Search..." value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
@@ -481,6 +859,7 @@ export default function App() {
                 {view === "leads" && <LeadsView data={data} onAdd={() => setModal({open:true,type:"lead",record:null})} onRow={r => setModal({open:true,type:"lead-detail",record:r})} />}
                 {view === "vendors" && <SimpleTable title="Vendors" subtitle="Material suppliers & service providers" cols={["Name","Category","Contact","Email","Phone","Status"]} rows={data.vendors.map(v=>[v.name,<span className="badge b-gray">{v.cat}</span>,v.contact,v.email,v.phone,badge(v.status||"Active")])} onAdd={() => setModal({open:true,type:"vendor",record:null})} onRow={r => setModal({open:true,type:"vendor-detail",record:data.vendors[r]})} />}
                 {view === "contractors" && <SimpleTable title="Consultants & Contractors" subtitle="Specialist collaborators & consultants" cols={["Name","Specialty","Project","Rate","Contract","Status"]} rows={data.contractors.map(c=>[c.name,c.specialty,c.project,c.rate,badge(c.contract||"Pending"),badge(c.status||"Active")])} onAdd={() => setModal({open:true,type:"contractor",record:null})} onRow={r => setModal({open:true,type:"contractor-detail",record:data.contractors[r]})} />}
+                {view === "revenue" && <RevenueDashboard data={data} />}
                 {view === "invoices" && <InvoicesView data={data} onAdd={() => setModal({open:true,type:"invoice",record:null})} onRow={r => setModal({open:true,type:"invoice-detail",record:r})} />}
                 {view === "receipts" && <SimpleTable title="Receipts" subtitle="Project expenses & procurement records" cols={["Description","Project","Category","Amount","Date","Reimbursable"]} rows={data.receipts.map(r=>[r.desc,r.project,<span className="badge b-gray">{r.cat}</span>,r.amount,r.date,r.reimb==="Yes"?<span className="badge b-green">Yes</span>:<span className="badge b-gray">No</span>])} onAdd={() => setModal({open:true,type:"receipt",record:null})} />}
                 {view === "payments" && <SimpleTable title="Contractor Payments" subtitle="Payments issued to consultants & contractors" cols={["Contractor","Project","Amount","Date","Method","Status"]} rows={data.payments.map(p=>[p.contractor,p.project,p.amount,p.date,<span className="badge b-gray">{p.method}</span>,badge(p.status||"Paid")])} onAdd={() => setModal({open:true,type:"payment",record:null})} />}
