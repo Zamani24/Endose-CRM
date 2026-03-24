@@ -553,11 +553,68 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+// HERO SLIDESHOW
+const HERO_SLIDES = [
+  { img: STORAGE_BASE + "/court-aerial.jpg", label: "Kickback Basketball Court", sub: "Community / Sport · Queen St E, Toronto" },
+  { img: STORAGE_BASE + "/tier-zero-office.jpg", label: "Tier Zero Production Studio", sub: "Studio Design · Toronto" },
+  { img: STORAGE_BASE + "/tier-zero-kitchen.jpg", label: "Tier Zero — Kitchen & Commons", sub: "Spatial flow · green cabinetry, slatted divider" },
+  { img: STORAGE_BASE + "/court-game.jpg", label: "Kickback: Game Day", sub: "Youth-led community programming · Toronto" },
+  { img: STORAGE_BASE + "/tier-zero-mezzanine.jpg", label: "Tier Zero — Mezzanine Level", sub: "Multi-level production studio · Toronto" },
+  { img: STORAGE_BASE + "/tier-zero-lounge.jpg", label: "Tier Zero — Lounge & Library", sub: "Interior design · curated spatial experience" },
+  { img: STORAGE_BASE + "/tier-zero-shelving.jpg", label: "Tier Zero — Culture Shelving", sub: "Branded object collection · community artifacts" },
+  { img: STORAGE_BASE + "/kickback-blue-wall.jpg", label: "Kickback Studio", sub: "Branded studio environment · Toronto" },
+  { img: STORAGE_BASE + "/kickback-sneaker-wall.jpg", label: "Kickback — Sneaker Wall", sub: "Cultural installation · community space" },
+  { img: STORAGE_BASE + "/kickback-gallery.jpg", label: "Kickback — Gallery Installation", sub: "Exhibition design · community photography" },
+  { img: STORAGE_BASE + "/nuit-blanche-tunnel.jpg", label: "Nuit Blanche × Union Station", sub: "Public installation · tunnel gallery · Toronto 2023" },
+  { img: STORAGE_BASE + "/tier-zero-backdrop.jpg", label: "Tier Zero — Production Studio", sub: "Flexible backdrop space · Toronto" },
+  { img: STORAGE_BASE + "/rexs-logo-seating.jpg", label: "Rex\'s Ice Cream — Logo Wall", sub: "Retail / Hospitality · Toronto 2024" },
+  { img: STORAGE_BASE + "/rexs-gallery-wall.jpg", label: "Rex\'s Ice Cream — Gallery Wall", sub: "Curated art installation · brand storytelling" },
+  { img: STORAGE_BASE + "/rexs-service-counter.jpg", label: "Rex\'s Ice Cream — Service Counter", sub: "Timber, green tile & slatted divider · Toronto" },
+  { img: STORAGE_BASE + "/rexs-shelving.jpg", label: "Rex\'s Ice Cream — Shelving Detail", sub: "Brand objects, plants & photography wall" },
+];
+
+function HeroSlideshow() {
+  const [idx, setIdx] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setIdx(i => (i + 1) % HERO_SLIDES.length);
+        setFade(true);
+      }, 300);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const slide = HERO_SLIDES[idx];
+  return (
+    <div style={{position:"relative",height:200,borderRadius:14,overflow:"hidden",marginBottom:20,background:"#111110"}}>
+      <img src={slide.img} alt={slide.label}
+        style={{width:"100%",height:"100%",objectFit:"cover",display:"block",
+          opacity:fade?0.85:0,transition:"opacity 0.3s ease"}} />
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(17,17,16,0.88) 0%,rgba(17,17,16,0.3) 55%,rgba(17,17,16,0.05) 100%)",display:"flex",flexDirection:"column",justifyContent:"center",padding:"28px 32px"}}>
+        <div style={{fontSize:10,letterSpacing:"0.16em",textTransform:"uppercase",color:"rgba(255,255,255,0.5)",marginBottom:6}}>Welcome back, Rabia</div>
+        <div style={{fontFamily:"DM Serif Display,serif",fontSize:26,color:"#fff",lineHeight:1.15,marginBottom:8,transition:"opacity 0.3s",opacity:fade?1:0}}>{slide.label}</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",maxWidth:320,lineHeight:1.5}}>{slide.sub}</div>
+        <div style={{display:"flex",gap:4,marginTop:14}}>
+          {HERO_SLIDES.map((_,i) => (
+            <div key={i} onClick={() => setIdx(i)} style={{height:3,borderRadius:2,cursor:"pointer",transition:"all 0.2s",
+              background:"rgba(255,255,255,0.9)",width:i===idx?32:20,opacity:i===idx?1:0.3}}></div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // DASHBOARD
 function Dashboard({ data, setView }) {
   const totalInvoiced = data.invoices.reduce((s,i) => s + (parseFloat((i.amount||"0").replace(/[^0-9.]/g,""))||0), 0);
   return (
     <div>
+      <HeroSlideshow />
       <div className="stats-row">
         <div className="stat"><div className="stat-label">Active Projects</div><div className="stat-value">{data.projects.length}</div><div className="stat-sub">in progress</div></div>
         <div className="stat"><div className="stat-label">Clients</div><div className="stat-value">{data.clients.length}</div><div className="stat-sub">total</div></div>
