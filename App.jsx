@@ -575,45 +575,45 @@ const HERO_SLIDES = [
 ];
 
 function HeroSlideshow() {
-  const [slideIdx, setSlideIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const slide = HERO_SLIDES[slideIdx];
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    HERO_SLIDES.forEach(slide => {
+      const img = new Image();
+      img.src = slide.img;
+    });
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setSlideIdx(function(i) { return (i + 1) % HERO_SLIDES.length; });
-        setVisible(true);
-      }, 300);
-    }, 5000);
-    return function() { clearInterval(timer); };
+      setIdx(i => (i + 1) % HERO_SLIDES.length);
+    }, 4000);
+    return () => clearInterval(timer);
   }, []);
 
+  const slide = HERO_SLIDES[idx];
   return (
     <div style={{position:"relative",height:200,borderRadius:14,overflow:"hidden",marginBottom:20,background:"#111110"}}>
-      <img src={slide.img} alt={slide.label}
-        style={{width:"100%",height:"100%",objectFit:"cover",display:"block",opacity:visible ? 0.85 : 0,transition:"opacity 0.3s ease"}} />
+      {HERO_SLIDES.map((s, i) => (
+        <img key={i} src={s.img} alt={s.label}
+          style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+            opacity:i===idx?0.85:0,transition:"opacity 0.8s ease",display:"block"}} />
+      ))}
       <div style={{position:"absolute",inset:0,background:"linear-gradient(to right,rgba(17,17,16,0.88) 0%,rgba(17,17,16,0.3) 55%,rgba(17,17,16,0.05) 100%)",display:"flex",flexDirection:"column",justifyContent:"center",padding:"28px 32px"}}>
         <div style={{fontSize:10,letterSpacing:"0.16em",textTransform:"uppercase",color:"rgba(255,255,255,0.5)",marginBottom:6}}>Welcome back, Rabia</div>
-        <div style={{fontFamily:"DM Serif Display,serif",fontSize:26,color:"#fff",lineHeight:1.15,marginBottom:8,opacity:visible ? 1 : 0,transition:"opacity 0.3s"}}>{slide.label}</div>
+        <div style={{fontFamily:"DM Serif Display,serif",fontSize:26,color:"#fff",lineHeight:1.15,marginBottom:8}}>{slide.label}</div>
         <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",maxWidth:320,lineHeight:1.5}}>{slide.sub}</div>
         <div style={{display:"flex",gap:4,marginTop:14}}>
-          {HERO_SLIDES.map(function(_, i) {
-            return (
-              <div key={i} onClick={function() { setSlideIdx(i); }}
-                style={{height:3,borderRadius:2,cursor:"pointer",transition:"all 0.2s",
-                  background:"rgba(255,255,255,0.9)",
-                  width: i === slideIdx ? 32 : 20,
-                  opacity: i === slideIdx ? 1 : 0.3}}>
-              </div>
-            );
-          })}
+          {HERO_SLIDES.map((_,i) => (
+            <div key={i} onClick={() => setIdx(i)} style={{height:3,borderRadius:2,cursor:"pointer",transition:"all 0.2s",
+              background:"rgba(255,255,255,0.9)",width:i===idx?32:20,opacity:i===idx?1:0.3}}></div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
+
 
 // DASHBOARD
 function Dashboard({ data, setView }) {
